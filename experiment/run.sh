@@ -182,14 +182,14 @@ if [ "$NPROC_PER_NODE" -gt 1 ]; then
         --depth=$DEPTH \
         --device_batch_size=$DEVICE_BATCH_SIZE \
         --training_hours=$TRAINING_HOURS \
-        --run=$WANDB_RUN
+        --wandb_run=$WANDB_RUN
 else
     echo "Running single-GPU training..."
     python -m experiment.train \
         --depth=$DEPTH \
         --device_batch_size=$DEVICE_BATCH_SIZE \
         --training_hours=$TRAINING_HOURS \
-        --run=$WANDB_RUN
+        --wandb_run=$WANDB_RUN
 fi
 
 echo ""

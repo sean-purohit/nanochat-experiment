@@ -43,7 +43,7 @@ print_banner()
 # CLI arguments
 parser = argparse.ArgumentParser(description="Train model on custom dataset")
 # Logging
-parser.add_argument("--run", type=str, default="dummy", help="wandb run name ('dummy' disables wandb logging)")
+parser.add_argument("--wandb_run", type=str, default="dummy", help="wandb run name ('dummy' disables wandb logging)")
 # Runtime
 parser.add_argument("--device_type", type=str, default="", help="cuda|cpu|mps (empty = autodetect)")
 
@@ -104,8 +104,8 @@ synchronize = torch.cuda.synchronize if device_type == "cuda" else lambda: None
 get_max_memory = torch.cuda.max_memory_allocated if device_type == "cuda" else lambda: 0
 
 # wandb logging
-use_dummy_wandb = args.run == "dummy" or not master_process
-wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(project="nanochat-experiment", name=args.run, config=user_config)
+use_dummy_wandb = args.wandb_run == "dummy" or not master_process
+wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(project="nanochat-experiment", name=args.wandb_run, config=user_config)
 
 # Tokenizer
 tokenizer = CharTokenizer()
