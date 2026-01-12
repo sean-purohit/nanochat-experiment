@@ -5,10 +5,11 @@ This experiment trains a transformer model on a custom dataset with a minimal ch
 ## Dataset Specifications
 
 - **Size**: ~350 million characters
-- **Vocabulary**: Only 15 characters allowed:
+- **Vocabulary**: Only 17 characters allowed:
   - Digits: `0`, `1`, `2`, `3`, `4`, `5`, `6`, `7`, `8`, `9`
   - Operators: `+`, `-`
-  - Letters: `H`, `B`
+  - Letters: `H`, `B`, `L`
+  - Decimal: `.`
   - Newline: `\n`
 
 ## Training Budget Options
@@ -170,23 +171,16 @@ Total embed:    196K params (~400KB in bf16)
 ## Custom Tokenizer Details
 
 ```python
-# Character mappings (IDs 0-14)
+# Character mappings (IDs 0-16)
 '0' -> 0    '1' -> 1    '2' -> 2    '3' -> 3    '4' -> 4
 '5' -> 5    '6' -> 6    '7' -> 7    '8' -> 8    '9' -> 9
-'+' -> 10   '-' -> 11   'H' -> 12   'B' -> 13   '\n' -> 14
+'+' -> 10   '-' -> 11   'H' -> 12   'B' -> 13   'L' -> 14
+'.' -> 15   '\n' -> 16
 
-# Special tokens (IDs 15-23)
-<|bos|>             -> 15
-<|user_start|>      -> 16
-<|user_end|>        -> 17
-<|assistant_start|> -> 18
-<|assistant_end|>   -> 19
-<|python_start|>    -> 20
-<|python_end|>      -> 21
-<|output_start|>    -> 22
-<|output_end|>      -> 23
+# Special tokens (ID 17)
+<|bos|> -> 17
 
-# Padding (IDs 24-31) - unused, for alignment
+# Padding (IDs 18-31) - unused, for alignment
 ```
 
 ## Notes

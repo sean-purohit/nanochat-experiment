@@ -4,34 +4,36 @@ Custom character-level tokenizer for the experiment.
 Vocabulary:
 - Digits: 0-9 (10 tokens)
 - Operators: +, - (2 tokens)
-- Letters: H, B (2 tokens)
+- Letters: H, B, L (3 tokens)
+- Decimal: . (1 token)
 - Newline: \n (1 token)
-- Special tokens for chat format (9 tokens)
+- Special token: <|bos|> (1 token)
 
-Total: 24 tokens (padded to 32 for efficiency)
+Total: 18 tokens (padded to 32 for efficiency)
 """
 
 import os
 import json
 
 # The allowed characters in our vocabulary
-VOCAB_CHARS = list("0123456789+-HB\n")
+VOCAB_CHARS = list("0123456789+-HBL.\n")
 
-# Special tokens (same as nanochat for compatibility)
+# Special tokens - minimal, no chat interface needed
 SPECIAL_TOKENS = [
     "<|bos|>",
-    "<|user_start|>",
-    "<|user_end|>",
-    "<|assistant_start|>",
-    "<|assistant_end|>",
-    "<|python_start|>",
-    "<|python_end|>",
-    "<|output_start|>",
-    "<|output_end|>",
+    # Chat tokens removed - not using chat interface
+    # "<|user_start|>",
+    # "<|user_end|>",
+    # "<|assistant_start|>",
+    # "<|assistant_end|>",
+    # "<|python_start|>",
+    # "<|python_end|>",
+    # "<|output_start|>",
+    # "<|output_end|>",
 ]
 
 # Build the vocabulary
-# Characters get IDs 0-14, special tokens get 15-23, padding to 32
+# Characters get IDs 0-16, special tokens get 17+, padding to 32
 CHAR_TO_ID = {char: i for i, char in enumerate(VOCAB_CHARS)}
 ID_TO_CHAR = {i: char for char, i in CHAR_TO_ID.items()}
 
@@ -145,70 +147,8 @@ class CharTokenizer:
             json.dump(config, f, indent=2)
         print(f"Saved tokenizer config to {config_path}")
     
-    def render_conversation(self, conversation, max_tokens=2048):
-        """
-        Tokenize a single Chat conversation.
-        Returns:
-        - ids: list[int] of token ids
-        - mask: list[int] of same length, mask = 1 for tokens to train on
-        """
-        import copy
-        
-        ids, mask = [], []
-        def add_tokens(token_ids, mask_val):
-            if isinstance(token_ids, int):
-                token_ids = [token_ids]
-            ids.extend(token_ids)
-            mask.extend([mask_val] * len(token_ids))
-        
-        # Handle system message by merging with first user message
-        messages = conversation["messages"]
-        if messages[0]["role"] == "system":
-            conversation = copy.deepcopy(conversation)
-            messages = conversation["messages"]
-            assert messages[1]["role"] == "user"
-            messages[1]["content"] = messages[0]["content"] + "\n\n" + messages[1]["content"]
-            messages = messages[1:]
-        
-        # Fetch special tokens
-        bos = self.get_bos_token_id()
-        user_start = self.encode_special("<|user_start|>")
-        user_end = self.encode_special("<|user_end|>")
-        assistant_start = self.encode_special("<|assistant_start|>")
-        assistant_end = self.encode_special("<|assistant_end|>")
-        
-        # Tokenize the conversation
-        add_tokens(bos, 0)
-        for i, message in enumerate(messages):
-            content = message["content"]
-            
-            if message["role"] == "user":
-                add_tokens(user_start, 0)
-                add_tokens(self.encode(content), 0)
-                add_tokens(user_end, 0)
-            elif message["role"] == "assistant":
-                add_tokens(assistant_start, 0)
-                if isinstance(content, str):
-                    add_tokens(self.encode(content), 1)
-                add_tokens(assistant_end, 1)
-        
-        # Truncate to max_tokens
-        ids = ids[:max_tokens]
-        mask = mask[:max_tokens]
-        return ids, mask
-    
-    def render_for_completion(self, conversation):
-        """Render conversation priming Assistant for completion (for RL)."""
-        import copy
-        conversation = copy.deepcopy(conversation)
-        messages = conversation["messages"]
-        assert messages[-1]["role"] == "assistant"
-        messages.pop()
-        
-        ids, mask = self.render_conversation(conversation)
-        assistant_start = self.encode_special("<|assistant_start|>")
-        ids.append(assistant_start)
-        return ids
+    # Chat interface methods removed - not using chat format for this experiment
+    # See original nanochat tokenizer if chat support is needed
 
 
 def get_tokenizer():

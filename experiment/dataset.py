@@ -20,7 +20,7 @@ import glob
 from pathlib import Path
 
 # Allowed characters in our vocabulary
-ALLOWED_CHARS = set("0123456789+-HB\n")
+ALLOWED_CHARS = set("0123456789+-HBL.\n")
 
 
 def get_experiment_base_dir():
