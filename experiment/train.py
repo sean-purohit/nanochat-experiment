@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import wandb
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 from nanochat.gpt import GPT, GPTConfig
 from nanochat.common import compute_init, compute_cleanup, print0, DummyWandb, print_banner, autodetect_device_type
@@ -106,6 +107,14 @@ get_max_memory = torch.cuda.max_memory_allocated if device_type == "cuda" else l
 # wandb logging
 use_dummy_wandb = args.wandb_run == "dummy" or not master_process
 wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(project="nanochat-experiment", name=args.wandb_run, config=user_config)
+
+# TensorBoard logging
+tb_writer = None
+if master_process:
+    base_dir = get_experiment_base_dir()
+    tb_log_dir = os.path.join(base_dir, "tensorboard_logs", args.model_tag if args.model_tag else f"d{args.depth}")
+    tb_writer = SummaryWriter(log_dir=tb_log_dir)
+    print0(f"TensorBoard logging to: {tb_log_dir}")
 
 # Tokenizer
 tokenizer = CharTokenizer()
@@ -304,6 +313,9 @@ while True:
         if val_loss < min_val_loss:
             min_val_loss = val_loss
         wandb_run.log({"step": step, "val/loss": val_loss})
+        if tb_writer:
+            tb_writer.add_scalar("val/loss", val_loss, step)
+            tb_writer.add_scalar("val/min_loss", min_val_loss, step)
         model.train()
     
     # Sampling
@@ -410,6 +422,13 @@ while True:
             "train/tok_per_sec": tok_per_sec,
             "train/mfu": mfu,
         })
+        if tb_writer:
+            tb_writer.add_scalar("train/loss", debiased_smooth_loss, step)
+            tb_writer.add_scalar("train/lrm", lrm, step)
+            tb_writer.add_scalar("train/dt", dt, step)
+            tb_writer.add_scalar("train/tok_per_sec", tok_per_sec, step)
+            tb_writer.add_scalar("train/mfu", mfu, step)
+            tb_writer.add_scalar("train/eta_hours", eta/3600 if steps_done > 0 else 0, step)
     
     step += 1
 
@@ -423,4 +442,7 @@ if val_loss is not None:
 print0(f"{'='*60}\n")
 
 wandb_run.finish()
+if tb_writer:
+    tb_writer.close()
+    print0("TensorBoard logs saved")
 compute_cleanup()
