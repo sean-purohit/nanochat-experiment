@@ -13,3 +13,4 @@ eval_bundle/
 CLAUDE.md
 wandb/
 experiment/dataset/
+experiment/checkpoints/
