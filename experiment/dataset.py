@@ -25,7 +25,13 @@ ALLOWED_CHARS = set("0123456789+-HBL.\n")
 
 def get_experiment_base_dir():
     """Get the base directory for experiment artifacts."""
-    return os.path.join(os.path.expanduser("~"), ".cache", "nanochat_experiment")
+    # Use /workspace for persistent storage on RunPod, fallback to ~/.cache for local
+    workspace_dir = "/workspace/nanochat_experiment"
+    if os.path.exists("/workspace"):
+        os.makedirs(workspace_dir, exist_ok=True)
+        return workspace_dir
+    else:
+        return os.path.join(os.path.expanduser("~"), ".cache", "nanochat_experiment")
 
 
 def get_data_dir():
