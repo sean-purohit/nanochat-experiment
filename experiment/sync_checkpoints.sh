@@ -11,7 +11,7 @@ REMOTE_HOST="216.81.245.148"
 REMOTE_PORT="13030"
 SSH_KEY="$HOME/.ssh/id_ed25519"
 REMOTE_PATH="/workspace/nanochat_experiment/checkpoints/d24/"
-LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)/checkpoints"
+BASE_CHECKPOINT_DIR="$(cd "$(dirname "$0")" && pwd)/checkpoints"
 SYNC_INTERVAL="${1:-30}"  # Default 30 minutes, or pass as first argument
 
 # Colors for output
@@ -21,23 +21,24 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Create local checkpoint directory
-mkdir -p "$LOCAL_DIR"
+# Create base checkpoint directory
+mkdir -p "$BASE_CHECKPOINT_DIR"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}Checkpoint Sync Script${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo -e "Remote: ${REMOTE_HOST}:${REMOTE_PORT}"
 echo -e "Source: ${REMOTE_PATH}"
-echo -e "Local:  ${LOCAL_DIR}"
+echo -e "Local:  ${BASE_CHECKPOINT_DIR}/<timestamp>/"
 echo -e "Interval: ${SYNC_INTERVAL} minutes"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # Function to sync checkpoints
 sync_checkpoints() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "${YELLOW}[${timestamp}] Syncing checkpoints...${NC}"
+    local display_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local folder_timestamp=$(date '+%Y-%m-%d_%H-%M')
+    echo -e "${YELLOW}[${display_timestamp}] Syncing checkpoints...${NC}"
     
     # Check if remote directory exists
     if ! ssh -p "$REMOTE_PORT" -i "$SSH_KEY" -o ConnectTimeout=10 root@"$REMOTE_HOST" "[ -d $REMOTE_PATH ]" 2>/dev/null; then
@@ -53,16 +54,21 @@ sync_checkpoints() {
         return 0
     fi
     
-    # Create local directory structure
-    mkdir -p "$LOCAL_DIR/d24"
+    # Create timestamped directory for this sync
+    local sync_dir="$BASE_CHECKPOINT_DIR/$folder_timestamp"
+    mkdir -p "$sync_dir"
+    echo -e "  Saving to: ${BLUE}${folder_timestamp}/${NC}"
+    echo ""
     
     local files_downloaded=0
     local files_skipped=0
+    local total_files=0
     
-    # Download each file if it doesn't exist locally
+    # Download each file
     while IFS= read -r file; do
+        total_files=$((total_files + 1))
         local remote_file="${REMOTE_PATH}${file}"
-        local local_file="$LOCAL_DIR/d24/${file}"
+        local local_file="${sync_dir}/${file}"
         
         if [ -f "$local_file" ]; then
             echo -e "  ${BLUE}Skip${NC} ${file} (already exists)"
@@ -79,25 +85,24 @@ sync_checkpoints() {
         fi
     done <<< "$remote_files"
     
-    # Count checkpoint files
-    local checkpoint_count=$(ls -1 "$LOCAL_DIR"/d24/model_*.pt 2>/dev/null | wc -l | tr -d ' ')
-    local disk_usage=$(du -sh "$LOCAL_DIR" 2>/dev/null | cut -f1)
+    # Count checkpoint files in current sync
+    local checkpoint_count=$(ls -1 "${sync_dir}"/model_*.pt 2>/dev/null | wc -l | tr -d ' ')
+    local sync_disk_usage=$(du -sh "$sync_dir" 2>/dev/null | cut -f1)
+    local total_disk_usage=$(du -sh "$BASE_CHECKPOINT_DIR" 2>/dev/null | cut -f1)
     
     echo ""
     echo -e "${GREEN}✓ Sync completed${NC}"
+    echo -e "  Location: ${folder_timestamp}/"
     echo -e "  Downloaded: ${files_downloaded} files"
     echo -e "  Skipped: ${files_skipped} files"
-    echo -e "  Total checkpoints: ${checkpoint_count}"
-    echo -e "  Disk usage: ${disk_usage}"
+    echo -e "  Total files: ${total_files}"
+    echo -e "  Checkpoints: ${checkpoint_count}"
+    echo -e "  This sync: ${sync_disk_usage}"
+    echo -e "  Total usage: ${total_disk_usage}"
     
-    # Show latest checkpoint
+    # Show checkpoint step numbers in this sync
     if [ "$checkpoint_count" -gt 0 ]; then
-        local latest=$(ls -t "$LOCAL_DIR"/d24/model_*.pt 2>/dev/null | head -1)
-        if [ -n "$latest" ]; then
-            local basename=$(basename "$latest")
-            local size=$(du -h "$latest" | cut -f1)
-            echo -e "  Latest: ${basename} (${size})"
-        fi
+        echo -e "  Steps: $(ls "${sync_dir}"/model_*.pt 2>/dev/null | sed 's/.*model_0*//' | sed 's/.pt//' | tr '\n' ', ' | sed 's/,$//')"
     fi
     
     echo ""
