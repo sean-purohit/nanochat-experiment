@@ -45,32 +45,59 @@ sync_checkpoints() {
         return 1
     fi
     
-    # Use rsync to sync only new/changed files
-    if rsync -avz --progress \
-        -e "ssh -p $REMOTE_PORT -i $SSH_KEY -o ConnectTimeout=10" \
-        "root@${REMOTE_HOST}:${REMOTE_PATH}" \
-        "$LOCAL_DIR/" 2>&1 | tee /tmp/checkpoint_sync.log; then
+    # Get list of remote checkpoint files
+    local remote_files=$(ssh -p "$REMOTE_PORT" -i "$SSH_KEY" -o ConnectTimeout=10 root@"$REMOTE_HOST" "ls ${REMOTE_PATH}" 2>/dev/null)
+    
+    if [ -z "$remote_files" ]; then
+        echo -e "${YELLOW}⚠ No checkpoint files found on remote${NC}"
+        return 0
+    fi
+    
+    # Create local directory structure
+    mkdir -p "$LOCAL_DIR/d24"
+    
+    local files_downloaded=0
+    local files_skipped=0
+    
+    # Download each file if it doesn't exist locally
+    while IFS= read -r file; do
+        local remote_file="${REMOTE_PATH}${file}"
+        local local_file="$LOCAL_DIR/d24/${file}"
         
-        # Count checkpoint files
-        local checkpoint_count=$(ls -1 "$LOCAL_DIR"/model_*.pt 2>/dev/null | wc -l | tr -d ' ')
-        local disk_usage=$(du -sh "$LOCAL_DIR" 2>/dev/null | cut -f1)
-        
-        echo -e "${GREEN}✓ Sync completed${NC}"
-        echo -e "  Checkpoints: ${checkpoint_count}"
-        echo -e "  Disk usage: ${disk_usage}"
-        
-        # Show latest checkpoint
-        if [ "$checkpoint_count" -gt 0 ]; then
-            local latest=$(ls -t "$LOCAL_DIR"/model_*.pt 2>/dev/null | head -1)
-            if [ -n "$latest" ]; then
-                local basename=$(basename "$latest")
-                local size=$(du -h "$latest" | cut -f1)
-                echo -e "  Latest: ${basename} (${size})"
+        if [ -f "$local_file" ]; then
+            echo -e "  ${BLUE}Skip${NC} ${file} (already exists)"
+            files_skipped=$((files_skipped + 1))
+        else
+            echo -e "  ${GREEN}Download${NC} ${file}..."
+            if scp -P "$REMOTE_PORT" -i "$SSH_KEY" -o ConnectTimeout=10 \
+                "root@${REMOTE_HOST}:${remote_file}" "$local_file" 2>&1 | grep -v "Bytes"; then
+                files_downloaded=$((files_downloaded + 1))
+                echo -e "    ${GREEN}✓${NC} Downloaded"
+            else
+                echo -e "    ${RED}✗${NC} Failed"
             fi
         fi
-    else
-        echo -e "${RED}✗ Sync failed - check connection${NC}"
-        return 1
+    done <<< "$remote_files"
+    
+    # Count checkpoint files
+    local checkpoint_count=$(ls -1 "$LOCAL_DIR"/d24/model_*.pt 2>/dev/null | wc -l | tr -d ' ')
+    local disk_usage=$(du -sh "$LOCAL_DIR" 2>/dev/null | cut -f1)
+    
+    echo ""
+    echo -e "${GREEN}✓ Sync completed${NC}"
+    echo -e "  Downloaded: ${files_downloaded} files"
+    echo -e "  Skipped: ${files_skipped} files"
+    echo -e "  Total checkpoints: ${checkpoint_count}"
+    echo -e "  Disk usage: ${disk_usage}"
+    
+    # Show latest checkpoint
+    if [ "$checkpoint_count" -gt 0 ]; then
+        local latest=$(ls -t "$LOCAL_DIR"/d24/model_*.pt 2>/dev/null | head -1)
+        if [ -n "$latest" ]; then
+            local basename=$(basename "$latest")
+            local size=$(du -h "$latest" | cut -f1)
+            echo -e "  Latest: ${basename} (${size})"
+        fi
     fi
     
     echo ""
