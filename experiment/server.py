@@ -33,9 +33,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from experiment.inference import InferenceEngine
 
-# Global inference engine
+# Global inference engine and model info
 inference_engine = None
-model_info = {}
+model_info = {
+    'checkpoint': os.getenv('INFERENCE_CHECKPOINT'),
+    'device': os.getenv('INFERENCE_DEVICE'),
+}
 
 
 class GenerateRequest(BaseModel):
@@ -76,15 +79,24 @@ class InfoResponse(BaseModel):
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup
-    print(f"Loading model from checkpoint: {model_info['checkpoint']}")
-    global inference_engine
-    inference_engine = InferenceEngine.from_checkpoint(
-        model_info['checkpoint'],
-        device=model_info.get('device'),
-        temperature=0.8,
-        top_k=None
-    )
-    print("Model loaded successfully!")
+    checkpoint = model_info.get('checkpoint')
+    if checkpoint:
+        print(f"Loading model from checkpoint: {checkpoint}")
+        global inference_engine
+        try:
+            inference_engine = InferenceEngine.from_checkpoint(
+                checkpoint,
+                device=model_info.get('device'),
+                temperature=0.8,
+                top_k=None
+            )
+            print("Model loaded successfully!")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print("Warning: No checkpoint specified")
     yield
     # Shutdown
     print("Shutting down server...")
@@ -223,12 +235,15 @@ def main():
     
     args = parser.parse_args()
     
+    # Set environment variables for the model config
+    os.environ['INFERENCE_CHECKPOINT'] = args.checkpoint
+    if args.device:
+        os.environ['INFERENCE_DEVICE'] = args.device
+    
     # Store model info globally
     global model_info
-    model_info = {
-        'checkpoint': args.checkpoint,
-        'device': args.device,
-    }
+    model_info['checkpoint'] = args.checkpoint
+    model_info['device'] = args.device
     
     # Get checkpoint info if available
     try:

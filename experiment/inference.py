@@ -25,10 +25,10 @@ import torch.nn.functional as F
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from nanochat.gpt import GPT, GPTConfig
-from nanochat.checkpoint_manager import load_checkpoint
 from nanochat.common import autodetect_device_type
 from experiment.tokenizer import CharTokenizer, VOCAB_SIZE
 from experiment.dataset import get_experiment_base_dir
+from experiment.checkpoint_loader import load_checkpoint
 
 
 class InferenceEngine:
@@ -131,19 +131,35 @@ class InferenceEngine:
         # Generate tokens
         for _ in range(max_tokens):
             # Forward pass
-            logits = self.model(tokens)
+            with torch.no_grad():
+                logits = self.model(tokens)
             
             # Get logits for last token
-            logits = logits[:, -1, :] / temperature
+            logits = logits[:, -1, :].clone()
+            
+            # Apply temperature
+            if temperature > 0:
+                logits = logits / temperature
             
             # Apply top-k filtering
-            if top_k is not None:
+            if top_k is not None and top_k > 0:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float('Inf')
             
             # Sample
             probs = F.softmax(logits, dim=-1)
-            next_token = torch.multinomial(probs, num_samples=1)
+            
+            # Handle edge case of all -inf (shouldn't happen but safety)
+            if torch.isnan(probs).any() or torch.isinf(probs).any():
+                # Fallback to uniform distribution over valid tokens
+                probs = torch.ones_like(probs) / probs.size(-1)
+            
+            if temperature == 0:
+                # Greedy decoding
+                next_token = torch.argmax(probs, dim=-1, keepdim=True)
+            else:
+                # Sample from distribution
+                next_token = torch.multinomial(probs, num_samples=1)
             
             # Append to sequence
             tokens = torch.cat([tokens, next_token], dim=1)
