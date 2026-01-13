@@ -1,0 +1,18 @@
+# Inference API Server Requirements
+# Install with: pip3 install -r experiment/requirements_server.txt
+
+# Core dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# For client examples
+requests>=2.31.0
+
+# PyTorch (choose appropriate version for your system)
+# CPU version:
+# torch>=2.0.0
+# GPU version (CUDA 11.8):
+# torch>=2.0.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+# Mac M1/M2:
+# torch>=2.0.0
