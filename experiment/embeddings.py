@@ -54,7 +54,7 @@ class EmbeddingExtractor:
         self.model.eval()
     
     @classmethod
-    def from_checkpoint(cls, model_tag="d24", step=None, device=None):
+    def from_checkpoint(cls, model_tag="d64", step=None, device=None):
         """
         Load a model from checkpoint and create an extractor.
         

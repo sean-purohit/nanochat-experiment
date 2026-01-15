@@ -49,18 +49,18 @@ parser.add_argument("--wandb_run", type=str, default="dummy", help="wandb run na
 parser.add_argument("--device_type", type=str, default="", help="cuda|cpu|mps (empty = autodetect)")
 
 # =============================================================================
-# $100 BUDGET CONFIGURATION (CURRENT) - 2 GPUs
+# $1000 BUDGET CONFIGURATION (ACTIVE) - 8x H100 PCIe GPUs
 # =============================================================================
-# Model architecture - moderate depth for $100 budget
-parser.add_argument("--depth", type=int, default=24, help="depth of the Transformer model (default: 24 for $100 budget)")
+# Model architecture - MAXIMUM DEPTH (d64 = 4.3B params)
+parser.add_argument("--depth", type=int, default=64, help="depth of the Transformer model (d64 = 4.3B params for 80GB H100)")
 parser.add_argument("--aspect_ratio", type=int, default=64, help="model_dim = depth * aspect_ratio")
 parser.add_argument("--head_dim", type=int, default=128, help="target head dimension for attention")
 parser.add_argument("--max_seq_len", type=int, default=2048, help="max context length")
 # Training horizon
 parser.add_argument("--num_iterations", type=int, default=-1, help="explicit number of optimization steps (-1 = auto)")
-parser.add_argument("--training_hours", type=float, default=16.0, help="target training hours (2 GPUs × 16h × $3 = $96)")
+parser.add_argument("--training_hours", type=float, default=31.0, help="target training hours (8 GPUs × 31h × $4 = $992)")
 # Optimization
-parser.add_argument("--device_batch_size", type=int, default=8, help="per-device batch size (larger for smaller model)")
+parser.add_argument("--device_batch_size", type=int, default=4, help="per-device batch size (d64 uses ~75GB/GPU)")
 parser.add_argument("--total_batch_size", type=int, default=524288, help="total batch size in tokens")
 
 # =============================================================================

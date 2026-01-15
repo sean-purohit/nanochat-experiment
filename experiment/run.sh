@@ -45,43 +45,40 @@ mkdir -p $NANOCHAT_EXPERIMENT_DIR/checkpoints
 # =============================================================================
 # GPU CONFIGURATION
 # =============================================================================
-# Number of GPUs (2 for $100 budget, 8 for $1000 budget)
-NPROC_PER_NODE=${NPROC_PER_NODE:-2}
-
-# # For $1000 budget with 8 GPUs (uncomment later):
-# NPROC_PER_NODE=${NPROC_PER_NODE:-8}
+# Number of GPUs - 8 for $1000 budget
+NPROC_PER_NODE=${NPROC_PER_NODE:-8}
 
 # wandb run name (set to "dummy" to disable)
 WANDB_RUN=${WANDB_RUN:-dummy}
 
 # =============================================================================
-# $100 BUDGET CONFIGURATION (CURRENT) - 2 GPUs
+# $1000 BUDGET CONFIGURATION (ACTIVE) - 8x H100 PCIe GPUs
 # =============================================================================
-# Model depth: d24 = ~600M params, uses ~25GB VRAM with batch_size=8
-DEPTH=${DEPTH:-24}
+# Model depth: d64 = ~4.3B params (MAXIMUM for 80GB H100)
+# Uses ~75GB VRAM per GPU with batch_size=4
+# Total model size: 4.3B parameters across 64 layers
+DEPTH=${DEPTH:-64}
 
-# Device batch size - larger for smaller models
-DEVICE_BATCH_SIZE=${DEVICE_BATCH_SIZE:-8}
+# Device batch size - optimized for depth 64 on H100
+# batch_size=4 uses ~75GB per GPU (safe for 80GB)
+# batch_size=2 uses ~42GB per GPU (more headroom but slower)
+DEVICE_BATCH_SIZE=${DEVICE_BATCH_SIZE:-4}
 
-# Training duration: ~16 hours for $100 budget (2 GPUs × 16h × $3/GPU = $96)
-# Same compute as 8 GPUs × 4h, just spread across fewer GPUs
-TRAINING_HOURS=${TRAINING_HOURS:-16.0}
+# Training duration: 31 hours for $1000 budget
+# 8 GPUs × 31h × $4/GPU/h = $992 (fills budget)
+TRAINING_HOURS=${TRAINING_HOURS:-31.0}
 
 # =============================================================================
-# $1000 BUDGET CONFIGURATION (UNCOMMENT FOR FULL TRAINING) - 8 GPUs
+# $100 BUDGET CONFIGURATION (ARCHIVED) - 2 GPUs
 # =============================================================================
-# # Model depth - DEEP due to tiny vocab
-# # d48 = ~2.4B params, uses ~60GB VRAM with batch_size=4
-# # d64 = ~3.2B params, might need batch_size=2
-# DEPTH=${DEPTH:-48}
-#
-# # Device batch size - smaller for deeper models
-# # d48: use 4-6
-# # d64: use 2-4
+# # Model depth: d24 = ~680M params
+# DEPTH=${DEPTH:-24}
+# # Device batch size
 # DEVICE_BATCH_SIZE=${DEVICE_BATCH_SIZE:-4}
-#
-# # Training duration in hours (set to fill $1000 budget with 8 GPUs)
-# TRAINING_HOURS=${TRAINING_HOURS:-31.0}
+# # Training duration: 16 hours
+# TRAINING_HOURS=${TRAINING_HOURS:-16.0}
+# # Number of GPUs
+# NPROC_PER_NODE=${NPROC_PER_NODE:-2}
 
 echo "============================================================"
 echo "EXPERIMENT: Custom Dataset Training"
